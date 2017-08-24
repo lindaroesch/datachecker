@@ -1,0 +1,1079 @@
+Option Compare Text
+Dim wb1 As Workbook
+Dim wb2 As Workbook
+
+Public Sub Allworkbooks()
+
+
+Application.ScreenUpdating = False
+
+Dim Sheet As Worksheet
+Dim PasteStart As Range
+Dim wnd As Window
+Dim lt As Single, tp As Single, wd As Single, ht As Single
+
+Set wb1 = ActiveWorkbook
+Set PasteStart = [DataChecker!A1]
+Set wnd = Application.ActiveWindow
+
+   WindowState = xlMaximized
+   ActiveWindow.WindowState = xlMaximized
+
+    lt = ActiveWindow.Left
+    wd = ActiveWindow.Width / 2
+    ht = ActiveWindow.Height
+    tp = ActiveWindow.Top
+    
+    ActiveWindow.WindowState = xlNormal
+    ActiveWindow.Left = lt
+    ActiveWindow.Top = tp
+    ActiveWindow.Width = wd
+    ActiveWindow.Height = ht
+
+On Error Resume Next
+Sheets("DataChecker").Unprotect
+Sheets("DataChecker").Visible = True
+
+Sheets("DataChecker").Select
+   Cells.Select
+   Selection.ClearFormats
+
+Application.GoTo Sheets("DataChecker").Range("A1"), True
+  
+FileToOpen = Application.GetOpenFilename _
+(Title:="Please choose your work plan", _
+FileFilter:="All Files (*.*),*.*")
+
+If FileToOpen = False Then
+    MsgBox "No File Specified.", vbExclamation, "ERROR"
+    Sheets("DataChecker").Visible = False
+    Sheets("Error Report").Visible = False
+    Exit Sub
+     Else
+      
+    Set wb2 = Workbooks.Open(FileName:=FileToOpen)
+    
+    Application.GoTo Sheets("Performance Measures").Range("A1"), True
+    Windows.CompareSideBySideWith wnd.Caption
+
+
+    ActiveWindow.WindowState = xlNormal
+    ActiveWindow.Width = wd
+    ActiveWindow.Left = lt + wd
+    ActiveWindow.Height = ht
+    ActiveWindow.Top = tp
+  
+  
+    Application.GoTo Sheets("Sheet1").Range("A1"), True
+    
+    wb2.Sheets("Sheet1").UsedRange.Copy
+    PasteStart.Parent.Activate
+    PasteStart.PasteSpecial xlPasteValuesAndNumberFormats
+    PasteStart.PasteSpecial xlPasteFormats
+
+
+    
+    
+    Call CheckValidations
+    
+      End If
+
+End Sub
+
+Public Sub OpenFile()
+
+Set wb1 = ActiveWorkbook
+Set PasteStart = [DataChecker!A1]
+Set wnd = Application.ActiveWindow
+
+Application.ScreenUpdating = False
+
+Sheets("DataChecker").Unprotect
+ 
+Sheets("DataChecker").Select
+   Cells.Select
+   Selection.ClearContents
+    
+ On Error GoTo Message
+     
+    wb2.Sheets("Sheet1").UsedRange.Copy
+    PasteStart.Parent.Activate
+    PasteStart.PasteSpecial xlPasteValuesAndNumberFormats
+    PasteStart.PasteSpecial xlPasteFormats
+      
+     Call CheckValidations
+    MsgBox "DataChecker refreshed."
+
+Exit Sub
+
+Message:
+MsgBox "Your Work Plan is no longer open. Please use the Home tab to reopen."
+
+ End Sub
+ 
+
+Sub CheckValidations()
+
+Dim iRow As Long, lastRow As Long, firstRow As Long, ARow As Long, firstARow As Long, lastARow As Long
+Dim wb1 As Workbook
+Dim rng As Range
+Dim lt As Single, tp As Single, wd As Single, ht As Single
+
+
+Set wb1 = Workbooks("DataChecker.xlsm"): wb1.Activate
+
+
+Application.ScreenUpdating = False
+
+ WindowState = xlMaximized
+   ActiveWindow.WindowState = xlMaximized
+
+    lt = ActiveWindow.Left
+    wd = ActiveWindow.Width / 2
+    ht = ActiveWindow.Height
+    tp = ActiveWindow.Top
+    
+    ActiveWindow.WindowState = xlNormal
+    ActiveWindow.Left = lt
+    ActiveWindow.Top = tp
+    ActiveWindow.Width = wd
+    ActiveWindow.Height = ht
+
+wb1.Sheets("Error Report").Visible = True
+wb1.Sheets("DataChecker").Visible = True
+ 
+'Clear errors sheet (so that it can be rerun after errors corrected)
+
+wb1.Sheets("Error Report").Rows("2:" & Rows.Count).EntireRow.Delete
+wb1.Sheets("DataChecker").Range("B5:Z696").Interior.Color = RGB(255, 255, 255)
+With wb1.Sheets("DataChecker").Range("B86:Z626").Validation.Delete
+End With
+
+'Define first/last rows of Heart Disease Measures
+With wb1.Sheets("DataChecker").Select
+
+    'lastRow = Sheets("DataChecker").Range("B" & Sheets("DataChecker").Rows.Count).End(xlUp).Row
+    lastRow = wb1.Sheets("DataChecker").Range("696:696").Row
+    firstRow = wb1.Sheets("DataChecker").Range("5:5").Row
+    
+    
+    lastARow = wb1.Sheets("Error Report").Range("B" & wb1.Sheets("Error Report").Rows.Count).End(xlUp).Row
+   
+
+'For each row run validations in columns, if there is an issue fill cell red and write error to errors sheet
+  For iRow = lastRow To firstRow Step -1
+
+Code:
+
+'Numerator and Denominator are Switched - Baseline
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 9) > Sheets("DataChecker").Cells(iRow, 10) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 9).Interior.Color = RGB(255, 121, 121)
+    With Sheets("DataChecker").Cells(iRow, 9).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Switched Numerator/Denominator"
+   .InputMessage = "The numerator entered is larger than the denominator. Please check and reenter."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 9).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 9).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Baseline Values: The numerator entered is larger than the denominator. It looks like they're switched. Please reenter."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+
+
+End If
+'Numerator and Denominator are Switched - Target
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(4, 12) = "Year 4 Target" And Sheets("DataChecker").Cells(iRow, 12) > Sheets("DataChecker").Cells(iRow, 13) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 12).Interior.Color = RGB(255, 121, 121)
+   With Sheets("DataChecker").Cells(iRow, 12).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Switched Numerator/Denominator"
+   .InputMessage = "The numerator entered is larger than the denominator. Please check and reenter."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 12).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 12).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Taget Values: The numerator entered is larger than the denominator. It looks like they're switched. Please reenter."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+            
+ 'Numerator and Denominator are Switched - Target
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 15) > Sheets("DataChecker").Cells(iRow, 16) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 15).Interior.Color = RGB(255, 121, 121)
+    With Sheets("DataChecker").Cells(iRow, 15).Validation
+    .Delete
+    .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+    .InputTitle = "Switched Numerator/Denominator"
+    .InputMessage = "The numerator entered is larger than the denominator. Please check and reenter."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 15).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 15).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Values: The numerator entered is larger than the denominator. It looks like they're switched. Please reenter."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+   End If
+   
+
+    'Numerator and Denominator are Switched - Actual
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 20) > Sheets("DataChecker").Cells(iRow, 21) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 20).Interior.Color = RGB(255, 121, 121)
+    With Sheets("DataChecker").Cells(iRow, 20).Validation
+    .Delete
+    .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+    .InputTitle = "Switched Numerator/Denominator"
+    .InputMessage = "The numerator entered is larger than the denominator. Please check and reenter."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 20).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 20).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Actual Values: The numerator entered is larger than the denominator. It looks like they're switched. Please reenter."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+   End If
+
+'Missing Numerator - Baseline
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And IsEmpty(Sheets("DataChecker").Cells(iRow, 9)) And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 10)) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 9).Interior.Color = RGB(255, 121, 121)
+    With Sheets("DataChecker").Cells(iRow, 9).Validation
+    .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Numerator"
+   .InputMessage = "Please enter a value for the numerator. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 9).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 9).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Baseline Values: A value is entered for the denominator but not the numerator. Please enter a value for the numerator."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+ 'Missing Numerator - Target
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(4, 12) = "Year 4 Target" And IsEmpty(Sheets("DataChecker").Cells(iRow, 12)) And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 13)) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 12).Interior.Color = RGB(255, 121, 121)
+  With Sheets("DataChecker").Cells(iRow, 12).Validation
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Numerator"
+   .InputMessage = "Please enter a value for the numerator. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 12).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 12).Address
+    'Sheets("Errors").Cells(lastARow, 2).Value = Sheets("DataChecker").Cells(iRow, 6).Row
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Value: A value is entered for the denominator but not the numerator. Please enter a value. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+
+  'Missing Numerator - Target
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And IsEmpty(Sheets("DataChecker").Cells(iRow, 15)) And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 16)) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 15).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 15).Validation
+ .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Numerator"
+   .InputMessage = "Please enter a value for the numerator. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 15).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 15).Address
+    'Sheets("Errors").Cells(lastARow, 2).Value = Sheets("DataChecker").Cells(iRow, 6).Row
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target: Values A value is entered for the denominator but not the numerator. Please enter a  value for the numerator."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+
+
+  'Missing Numerator - Actual
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And IsEmpty(Sheets("DataChecker").Cells(iRow, 20)) And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 21)) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 20).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 20).Validation
+ .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Numerator"
+   .InputMessage = "Please enter a value for the numerator. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 20).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 20).Address
+    'Sheets("Errors").Cells(lastARow, 2).Value = Sheets("DataChecker").Cells(iRow, 6).Row
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Actual: Values A value is entered for the denominator but not the numerator. Please enter a  value for the numerator."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+
+
+'Missing Denominator - Baseline
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And IsEmpty(Sheets("DataChecker").Cells(iRow, 10)) And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 9)) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 10).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 10).Validation
+ .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Denominator"
+   .InputMessage = "Please enter a value for the denominator. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 10).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 10).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Baseline Value: A value is entered for the numerator but not the denominator. Please enter a  value for the denominator."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+ 'Missing Denominator - Target
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(4, 12) = "Year 4 Target" And IsEmpty(Sheets("DataChecker").Cells(iRow, 13)) And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 12)) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 13).Interior.Color = RGB(255, 121, 121)
+    With Sheets("DataChecker").Cells(iRow, 13).Validation
+    .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Denominator"
+   .InputMessage = "Please enter a value for the denominator. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 13).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 13).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Value: A value is entered for the numerator but not the denominator. Please enter a value for the denominator."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+
+  'Missing Denominator - Target
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And IsEmpty(Sheets("DataChecker").Cells(iRow, 16)) And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 15)) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 16).Interior.Color = RGB(255, 121, 121)
+  With Sheets("DataChecker").Cells(iRow, 16).Validation
+  .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Denominator"
+   .InputMessage = "Please enter a value for the denominator. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 16).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 16).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Value: A value is entered for the numerator but not the denominator. Please enter a  value for the denominator."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+        
+      'Missing Denominator - Actual
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And IsEmpty(Sheets("DataChecker").Cells(iRow, 21)) And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 20)) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 21).Interior.Color = RGB(255, 121, 121)
+  With Sheets("DataChecker").Cells(iRow, 21).Validation
+  .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Denominator"
+   .InputMessage = "Please enter a value for the denominator. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 21).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 21).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Actual Value: A value is entered for the numerator but not the denominator. Please enter a  value for the denominator."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+  'Missing Baseline
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And WorksheetFunction.Count(Rows(iRow)) > 1 And Sheets("DataChecker").Cells(iRow, 4) = "Yes" And IsEmpty(Sheets("DataChecker").Cells(iRow, 9)) And IsEmpty(Sheets("DataChecker").Cells(iRow, 10)) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 9).Interior.Color = RGB(255, 121, 121)
+   Sheets("DataChecker").Cells(iRow, 10).Interior.Color = RGB(255, 121, 121)
+    With Sheets("DataChecker").Cells(iRow, 9).Validation
+    .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Baseline Values"
+   .InputMessage = "Please enter Baseline values. If you do not have values, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+    With Sheets("DataChecker").Cells(iRow, 10).Validation
+    .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Baseline Values"
+   .InputMessage = "Please enter Baseline values. If you do not have values, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 9).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 9).Address
+    'Sheets("Errors").Cells(lastARow, 2).Value = Sheets("DataChecker").Cells(iRow, 6).Row
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Baseline Values: Values have been entered for Actual and/or Target but Baseline values is missing. Please enter Baseline values."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+  'Missing Target
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And WorksheetFunction.Count(Rows(iRow)) > 1 And Sheets("DataChecker").Cells(4, 12) = "Year 4 Target" And Sheets("DataChecker").Cells(iRow, 4) = "Yes" And IsEmpty(Sheets("DataChecker").Cells(iRow, 12)) And IsEmpty(Sheets("DataChecker").Cells(iRow, 13)) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 12).Interior.Color = RGB(255, 121, 121)
+   Sheets("DataChecker").Cells(iRow, 13).Interior.Color = RGB(255, 121, 121)
+    With Sheets("DataChecker").Cells(iRow, 12).Validation
+    .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Target Values"
+   .InputMessage = "Please enter Target values. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+  With Sheets("DataChecker").Cells(iRow, 13).Validation
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Target Values"
+   .InputMessage = "Please enter Target values. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 12).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 12).Address
+    'Sheets("Errors").Cells(lastARow, 2).Value = Sheets("DataChecker").Cells(iRow, 6).Row
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Values: Values have been entered for Baseline and/or Target but Actual values are missing. Please enter Actual values."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+  'Missing Target
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And WorksheetFunction.Count(Rows(iRow)) > 1 And Sheets("DataChecker").Cells(iRow, 4) = "Yes" And IsEmpty(Sheets("DataChecker").Cells(iRow, 15)) And IsEmpty(Sheets("DataChecker").Cells(iRow, 16)) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 15).Interior.Color = RGB(255, 121, 121)
+   Sheets("DataChecker").Cells(iRow, 16).Interior.Color = RGB(255, 121, 121)
+   With Sheets("DataChecker").Cells(iRow, 15).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Target Values"
+   .InputMessage = " Please enter Target data. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   With Sheets("DataChecker").Cells(iRow, 16).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Target Values"
+   .InputMessage = " Please enter Target data. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 15).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 15).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Values: Values have been entered for Actual and/or Baseline but Target values are missing. Please enter Target data."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+
+      'Missing Actual
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And WorksheetFunction.Count(Rows(iRow)) > 1 And IsEmpty(Sheets("DataChecker").Cells(iRow, 20)) And IsEmpty(Sheets("DataChecker").Cells(iRow, 21)) Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 20).Interior.Color = RGB(255, 121, 121)
+   Sheets("DataChecker").Cells(iRow, 21).Interior.Color = RGB(255, 121, 121)
+   With Sheets("DataChecker").Cells(iRow, 20).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Actual Values"
+   .InputMessage = " Please enter Actual data. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   With Sheets("DataChecker").Cells(iRow, 21).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Actual Values"
+   .InputMessage = " Please enter Actual data. If you do not have a value, please remove data from row and add note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 20).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 20).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Actual Values: Values have been entered for Actual and/or Baseline but Target values are missing. Please enter Target data."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+      'Missing Source
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And IsEmpty(Sheets("DataChecker").Cells(iRow, 6)) = True And Sheets("DataChecker").Cells(iRow, 4) = "Yes" And WorksheetFunction.Count(Rows(iRow)) > 1 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 6).Interior.Color = RGB(255, 121, 121)
+    With Sheets("DataChecker").Cells(iRow, 6).Validation
+    .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Missing Source"
+   .InputMessage = "Please identify the Source."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 6).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 6).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Values have been entered for Baseline, Actual, and Target, but Source is missing. Please identify the data source."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+
+      'Source no data
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And IsEmpty(Sheets("DataChecker").Cells(iRow, 6)) = False And Sheets("DataChecker").Cells(iRow, 4) = "Yes" And WorksheetFunction.Count(Rows(iRow)) = 0 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 6).Interior.Color = RGB(255, 121, 121)
+    With Sheets("DataChecker").Cells(iRow, 6).Validation
+    .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Identified source but no data"
+   .InputMessage = "Please identify the Source."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 6).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 6).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Source has been identified. No data for source."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+'Patient Measures-Combining Sources Baseline
+If Not Range("Patient").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 10) > 10000000 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 10).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 10).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Value Higher than Expected"
+   .InputMessage = "The value entered for this measure is higher than expected. Please make sure you are entering values for one data source per row."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 10).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 10).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Baseline Value: The value entered for this measure is higher than expected. Please make sure you are entering values one data source per row."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'Patient Measures-Combining sources Target
+If Not Range("Patient").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(4, 12) = "Year 4 Target" And Sheets("DataChecker").Cells(iRow, 13) > 10000000 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 13).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 13).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Value Higher than Expected"
+   .InputMessage = "The value entered for this measure is higher than expected. Please make sure you are entering values one data source per row."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 13).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 13).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Value: The value entered for this measure is higher than expected. Please make sure you are entering values for one source per row."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'Patient Measures-Combining sources Target
+If Not Range("Patient").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 16) > 10000000 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 16).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 16).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Value Higher than Expected"
+   .InputMessage = "The value entered for this measure is higher than expected. Please make sure you are entering values for one source per row."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 16).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 16).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Value: The value entered for this measure is higher than expected. Please make sure you are entering values for one data source per row."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'Patient Measures-Combining sources Actual
+If Not Range("Patient").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 21) > 10000000 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 21).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 21).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Value Higher than Expected"
+   .InputMessage = "The value entered for this measure is higher than expected. Please make sure you are entering values for one source per row."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 21).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 21).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Actual Value: The value entered for this measure is higher than expected. Please make sure you are entering values for one data source per row."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'System Measures-Combining sources Baseline
+If Not Range("System").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 10) > 158 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 10).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 10).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Value Higher than Expected"
+   .InputMessage = "The value entered for this measure is higher than expected. Please make sure you are entering values for number of health systems. Please use a different row for each data source if combining multiple sources."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 10).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 10).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Baseline: The value entered for this measure is higher than expected. Please make sure you are entering values for number of health systems. Please use a different row for each data source if combining multiple sources."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'System Measures-Combining sources Target
+If Not Range("System").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(4, 12) = "Year 4 Target" And Sheets("DataChecker").Cells(iRow, 13) > 158 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 13).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 13).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Value Higher than Expected"
+   .InputMessage = "The value entered for this measure is higher than expected. Please make sure you are entering values for number of health systems. Please use a different row for each data source if combining multiple sources."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 13).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 13).Address
+
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Value: The value entered for this measure is higher than expected. Please make sure you are entering values for number of health systems. Please use a different row for each data source if combining multiple sources."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'System Measures-Combining sources Target
+If Not Range("System").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 16) > 158 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 16).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 16).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Value Higher than Expected"
+   .InputMessage = "The value entered for this measure is higher than expected. Please make sure you are entering values for number of health systems. Please use a different row for each data source if combining multiple sources."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 16).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 16).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Value: The value entered for this measure is higher than expected. Please make sure you are entering values for number of health systems. Please use a different row for each data source if combining multiple sources."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'System Measures-Combining sources Actual
+If Not Range("System").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 21) > 158 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 21).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 21).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Value Higher than Expected"
+   .InputMessage = "The value entered for this measure is higher than expected. Please make sure you are entering values for number of health systems. Please use a different row for each data source if combining multiple sources."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 21).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 21).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Actual Value: The value entered for this measure is higher than expected. Please make sure you are entering values for number of health systems. Please use a different row for each data source if combining multiple sources."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'Invalid Source Census
+If Not Range("Census").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 7) Like "*census*" Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 6).Interior.Color = RGB(255, 121, 121)
+   Sheets("DataChecker").Cells(iRow, 7).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 6).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "Not an appropriate source for this measure. Please choose a different source."
+   End With
+    With Sheets("DataChecker").Cells(iRow, 7).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "US Census is not an appropriate source for this measure. Please choose a different source."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Invalid Source: Not an appropriate source for this measure. Please choose a different source."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'Invalid Source Census
+If Not Range("Census").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 6) = "US Census" Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 6).Interior.Color = RGB(255, 121, 121)
+   Sheets("DataChecker").Cells(iRow, 7).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 6).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "Not an appropriate source for this measure. Please choose a different source."
+   End With
+    With Sheets("DataChecker").Cells(iRow, 7).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "US Census is not an appropriate source for this measure. Please choose a different source."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Invalid Source: Not an appropriate source for this measure. Please choose a different source."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'Invalid Source UDS
+If Not Range("UDS").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 7) Like "*UDS*" Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 6).Interior.Color = RGB(255, 121, 121)
+   Sheets("DataChecker").Cells(iRow, 7).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 6).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "Not an appropriate source for this measure. Please choose a different source."
+   End With
+    With Sheets("DataChecker").Cells(iRow, 7).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "UDS not an appropriate source for this measure. Please choose a different source."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Invalid Source: Not an appropriate source for this measure. Please choose a different source."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'Invalid Source UDS
+If Not Range("UDS").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 6) = "Uniform Data System (UDS)" Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 6).Interior.Color = RGB(255, 121, 121)
+   Sheets("DataChecker").Cells(iRow, 7).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 6).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "Not an appropriate source for this measure. Please choose a different source."
+   End With
+    With Sheets("DataChecker").Cells(iRow, 7).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "UDS is not an appropriate source for this measure. Please choose a different source."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Invalid Source: Not an appropriate source for this measure. Please choose a different source."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'Invalid Source BRFSS
+If Not Range("BRFSS").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 7) Like "*BRFSS*" Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 6).Interior.Color = RGB(255, 121, 121)
+   Sheets("DataChecker").Cells(iRow, 7).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 6).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "Not an appropriate source for this measure. Please choose a different source."
+   End With
+    With Sheets("DataChecker").Cells(iRow, 7).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "BRFSS is not an appropriate source for this measure. Please choose a different source."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Invalid Source: Not an appropriate source for this measure. Please choose a different source."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'Invalid Source BRFSS
+If Not Range("BRFSS").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 6) = "Behavioral Risk Factor Surveillance Survey (BRFSS)" Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 6).Interior.Color = RGB(255, 121, 121)
+   Sheets("DataChecker").Cells(iRow, 7).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 6).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "Not an appropriate source for this measure. Please choose a different source."
+   End With
+    With Sheets("DataChecker").Cells(iRow, 7).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "BRFSS is not an appropriate source for this measure. Please choose a different source."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Invalid Source: Not an appropriate source for this measure. Please choose a different source."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'Invalid Source AHAS
+If Not Range("AHAS").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 6) = "American Hospital Association Survey" Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 6).Interior.Color = RGB(255, 121, 121)
+   Sheets("DataChecker").Cells(iRow, 7).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 6).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "Not an appropriate source for this measure. Please choose a different source."
+   End With
+    With Sheets("DataChecker").Cells(iRow, 7).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "AHAS is not an appropriate source for this measure. Please choose a different source."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Invalid Source: Not an appropriate source for this measure. Please choose a different source."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'Invalid Source AHAS
+If Not Range("AHAS").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 7) Like "American Hospital Association Survey*" Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 6).Interior.Color = RGB(255, 121, 121)
+   Sheets("DataChecker").Cells(iRow, 7).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 6).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "Not an appropriate source for this measure. Please choose a different source."
+   End With
+    With Sheets("DataChecker").Cells(iRow, 7).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Invalid Source"
+   .InputMessage = "AHAS is not an appropriate source for this measure. Please choose a different source."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 7).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Invalid Source: Not an appropriate source for this measure. Please choose a different source."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+
+'EHR/HRSA UDS
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(iRow, 6) = "Electronic Health Record (EHR) Data" Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 6).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 6).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "HRSA UDS as EHR Data Source"
+   .InputMessage = "EHR data has been chosen as a data source. If your data is from HRSA UDS please use the HRSA UDS dropdown."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 6).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 6).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "EHR data has been chosen as a data source. If your data is from HRSA UDS please use the HRSA UDS dropdown."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+'Parent Row
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And WorksheetFunction.Count(Rows(iRow)) > 1 And Sheets("DataChecker").Cells(iRow, 4) = "Yes" And Sheets("DataChecker").Cells(iRow, 5) > 0 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 2).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 2).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Data Entered in Parent Row"
+   .InputMessage = "Please make sure this is a state-wide value. If not, please use a sub row."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 2).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 2).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Data entered in parent row. Please make sure this is a state-wide value. If not, please use a sub row."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+End If
+
+
+'Zero Numerator - Baseline
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 9)) And (Sheets("DataChecker").Cells(iRow, 9)) = 0 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 9).Interior.Color = RGB(255, 121, 121)
+    With Sheets("DataChecker").Cells(iRow, 9).Validation
+     .Delete
+     .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+     .InputTitle = "Numerator is Zero"
+     .InputMessage = "Please make sure value is a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 9).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 9).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Baseline Values: Zero is entered for numerator. Please make sure its a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+ 'Zero Numerator - Target
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(4, 12) = "Year 4 Target" And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 12)) And (Sheets("DataChecker").Cells(iRow, 12)) = 0 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 12).Interior.Color = RGB(255, 121, 121)
+  With Sheets("DataChecker").Cells(iRow, 12).Validation
+    .Delete
+    .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+    .InputTitle = "Numerator is Zero"
+    .InputMessage = "Please make sure value is a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 12).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 12).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Value: Zero is entered for numerator. Please make sure its a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+
+  'Zero Numerator - Target
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 15)) And (Sheets("DataChecker").Cells(iRow, 15)) = 0 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 15).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 15).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Numerator Zero"
+   .InputMessage = "Please make sure value is a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 15).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 15).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Values: Zero is entered for numerator. Please make sure its a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+
+  'Zero Numerator - Actual
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 20)) And (Sheets("DataChecker").Cells(iRow, 20)) = 0 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 20).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 20).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Numerator Zero"
+   .InputMessage = "Please make sure value is a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 20).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 20).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Actual Values: Zero is entered for numerator. Please make sure its a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+'Zero Denominator - Baseline
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 10)) And (Sheets("DataChecker").Cells(iRow, 10)) = 0 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 10).Interior.Color = RGB(255, 121, 121)
+ With Sheets("DataChecker").Cells(iRow, 10).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Denominator is Zero"
+   .InputMessage = "Please make sure value is a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 10).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 10).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Baseline Value: Zero is entered for denominator. Please make sure its a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+ 'Zero Denominator - Target
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Sheets("DataChecker").Cells(4, 12) = "Year 4 Target" And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 13)) And (Sheets("DataChecker").Cells(iRow, 13)) = 0 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 13).Interior.Color = RGB(255, 121, 121)
+    With Sheets("DataChecker").Cells(iRow, 13).Validation
+    .Delete
+    .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+    .InputTitle = "Denominator is Zero"
+    .InputMessage = "Zero is entered for Denominator. Please make sure its a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 13).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 13).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Value: Zero is entered for denominator. Please make sure its a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+
+  'Zero Denominator - Target
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 16)) And (Sheets("DataChecker").Cells(iRow, 16)) = 0 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 16).Interior.Color = RGB(255, 121, 121)
+  With Sheets("DataChecker").Cells(iRow, 16).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Denominator is Zero"
+   .InputMessage = "Please make sure value is a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 16).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 16).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Target Value: Zero is entered for denominator. Please make sure its a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+      'Zero Denominator - Actual
+If Not Range("Measures").Find(Sheets("DataChecker").Cells(iRow, 2)) Is Nothing And Not IsEmpty(Sheets("DataChecker").Cells(iRow, 21)) And (Sheets("DataChecker").Cells(iRow, 21)) = 0 Then
+    lastARow = lastARow + 1
+   Sheets("DataChecker").Cells(iRow, 21).Interior.Color = RGB(255, 121, 121)
+  With Sheets("DataChecker").Cells(iRow, 21).Validation
+   .Delete
+   .Add Type:=xlValidateInputOnly, AlertStyle:=xlValidAlertInformation
+   .InputTitle = "Denominator is Zero"
+   .InputMessage = "Please make sure value is a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   End With
+   Sheets("Error Report").Hyperlinks.Add Anchor:=Sheets("Error Report").Cells(lastARow, 2), Address:="", SubAddress:= _
+        "'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 21).Address, TextToDisplay:="'" & Sheets("DataChecker").Name & "'!" & Cells(iRow, 21).Address
+   Sheets("Error Report").Cells(lastARow, 3).Value = "Actual Value: Zero is entered for denominator. Please make sure its a true zero. If you do not have a value, please remove data from row and note in notes field with the explanation and timeline."
+   Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Color = RGB(255, 255, 255)
+   Sheets("Error Report").Cells(lastARow, 4).Borders.Weight = 4
+    End If
+    
+     If Sheets("DataChecker").Cells(iRow, 20).Text = "True" Or Sheets("DataChecker").Cells(iRow, 20).Text = "False" Or Sheets("DataChecker").Cells(iRow, 20).Text = "num" Or Sheets("DataChecker").Cells(iRow, 20).Text = "denom" Or Sheets("DataChecker").Cells(iRow, 20).Text = "pct" Then
+     Sheets("DataChecker").Cells(iRow, 20).Font.Color = RGB(255, 255, 255)
+                Sheets("DataChecker").Cells(iRow, 21).Font.Color = RGB(255, 255, 255)
+                 Sheets("DataChecker").Cells(iRow, 22).Font.Color = RGB(255, 255, 255)
+           End If
+           
+           
+           Next iRow
+     
+     
+        
+If Sheets("Error Report").Cells(lastARow, 4).Interior.Color = RGB(255, 121, 121) = False Then
+ MsgBox "Data Check Complete! No errors found. You're good to go!"
+End If
+
+        Sheets("DataChecker").Cells.Locked = True
+        Sheets("DataChecker").Protect
+
+End With
+Application.ScreenUpdating = True
+End Sub
